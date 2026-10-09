@@ -156,7 +156,7 @@ def _session_fingerprint(session: str) -> str:
 # with "bw returned no output" and require a hand edit, the source can
 # re-derive a fresh session itself — one attempt per process, best-effort.
 
-_DEFAULT_HEAL_PASSWORD_FILE = "~/.config/zero-bw/bw.env"
+_DEFAULT_HEAL_PASSWORD_FILE = "~/.hermes/.env"
 _DEFAULT_HEAL_PASSWORD_VAR = "BW_PASSWORD"
 # CLI-native (no-underscore) names the ``bw`` CLI reads for API-key login.
 _HEAL_CLIENTID_VAR = "BW_CLIENTID"
@@ -286,11 +286,17 @@ def _rederive_session(
         client_id = file_values.get("BW_CLIENT_ID")
         client_secret = file_values.get("BW_CLIENT_SECRET")
         if client_id and client_secret:
-            login_env = {
+            login_env: Dict[str, str] = {
                 _HEAL_CLIENTID_VAR: client_id,
                 _HEAL_CLIENTSECRET_VAR: client_secret,
                 "NODE_OPTIONS": "--no-deprecation",
             }
+            # Some CLI builds honor BW_SERVER_URL from the environment;
+            # others resolve the server from persistent state.  Passing it
+            # through costs nothing and makes the credentials file the
+            # single source of truth where it is honored.
+            if file_values.get("BW_SERVER_URL"):
+                login_env["BW_SERVER_URL"] = file_values["BW_SERVER_URL"]
             run_secret_cli(
                 [str(bw), "login", "--apikey", "--raw"],
                 extra_env=login_env,
